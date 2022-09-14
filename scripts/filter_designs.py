@@ -14,7 +14,7 @@ from subprocess import Popen, PIPE
 #############################
 
 parser = argparse.ArgumentParser(description='Filter designs:')
-parser.add_argument('-i', nargs=1, help='Silent files to combine and filter comma-separated', type=str, required=True)
+parser.add_argument('-i', nargs=1, help='Paths to silent files to filter, comma-separated', type=str, required=True)
 parser.add_argument('-p', nargs=1, help="Output pdb structures of the filtered complexes. Number or 'all'", type=str, required=False)
 parser.add_argument('-n', nargs=1, help="Optional. A desired number of designs to filter. By default it is set to 50%% of designs passing the hard cuts filters", type=int, required=False)
 parser.add_argument('-hard_cut_only', help="In case you have only few designs passing hard cuts you may want to leave just these without best effort filtering", action='store_true', required=False)
@@ -95,11 +95,11 @@ designs = args.i[0].split(',')
 ## read all score files from specified dirs
 
 score_dfs = []
-for design_dir in dirs_to_parse:
-	sc_file = glob.glob(f'{design_dir}/*.sc')[0]
+for design in designs:
+	sc_file = f"{design[:-7]}.sc"
 	asdf = pd.read_csv(sc_file, sep='\s+')
-	asdf['origin'] = design_dir
-	print(f'In {design_dir} found {asdf.shape[0]} designs to filter')
+	asdf['origin'] = design.split('/')[-1][:-7]
+	print(f'In {design} found {asdf.shape[0]} designs to filter')
 	score_dfs.append(asdf)
 score_df = pd.concat(score_dfs)
 score_df.reset_index(drop=True, inplace=True)
@@ -168,11 +168,11 @@ else:
 		final_df = score_df[score_df['orderable']]
 
 	# save filtered designs
-	final_df[['description']].to_csv(f"filtered_{'_'.join(dirs_to_parse)}/filtered_designs.list", index=None, header=None)
-	filtered_designs = open(f"filtered_{'_'.join(dirs_to_parse)}/filtered_designs.silent", 'a')
-	for design_dir in dirs_to_parse:
-		p1 = Popen(["cat", f"filtered_{'_'.join(dirs_to_parse)}/filtered_designs.list"], stdout=PIPE)
-		p2 = Popen(["silentslice", f"{design_dir}/designs_combined.silent"], stdin=p1.stdout, stdout=filtered_designs)
+	final_df[['description']].to_csv(f"filtered_designs.list", index=None, header=None)
+	filtered_designs = open(f"filtered_designs.silent", 'w')
+	for design in designs:
+		p1 = Popen(["cat", f"filtered_designs.list"], stdout=PIPE)
+		p2 = Popen(["silentslice", design], stdin=p1.stdout, stdout=filtered_designs)
 		returncode = p2.wait()
 	filtered_designs.close()
 
@@ -187,14 +187,14 @@ if not args.p is None:
 
 	print(f"Converting {args.p[0]} of filtered designs into pdb")
 
-	os.makedirs(f"filtered_{'_'.join(dirs_to_parse)}/designs_pdb", exist_ok=True)
-	os.chdir(f"filtered_{'_'.join(dirs_to_parse)}/designs_pdb")
+	os.makedirs(f"designs_pdb", exist_ok=True)
+	os.chdir(f"designs_pdb")
 	p1 = Popen(["silentls", f'../filtered_designs.silent'], stdout=PIPE)
 	p2 = Popen(["shuf"], stdin=p1.stdout, stdout=PIPE)
 	p3 = Popen(["head", "-n", str(num_to_extract)], stdin=p2.stdout, stdout=PIPE)
 	p4 = Popen(["silentextractspecific", f'../filtered_designs.silent'], stdin=p3.stdout, stdout=PIPE)
 	returncode = p4.wait()
-	os.chdir("../../")
+	os.chdir("../")
 
 ## plot terms destributions
 
@@ -217,7 +217,7 @@ for i, cut in enumerate(hard_cuts):
     axes[i].set_xlabel(xlabel=cut, fontsize=15, labelpad=15)
     axes[i].set_ylabel(ylabel='Count', fontsize=15, labelpad=15)
     
-plt.savefig(f"filtered_{'_'.join(dirs_to_parse)}/terms_distributions.png", dpi=300)
+plt.savefig(f"terms_distributions.png", dpi=300)
 
 
 
