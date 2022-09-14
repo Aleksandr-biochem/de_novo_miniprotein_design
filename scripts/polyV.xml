@@ -1,0 +1,22 @@
+
+
+<ROSETTASCRIPTS>
+    <SCOREFXNS>
+        <ScoreFunction name="sfxn" weights="ref2015" />
+
+    </SCOREFXNS>
+    <TASKOPERATIONS>
+
+         <RestrictAbsentCanonicalAAS name="polyV" keep_aas="V" />
+
+    </TASKOPERATIONS>
+    <MOVERS>
+        <PackRotamersMover name="PackRotamers" scorefxn="sfxn" task_operations="polyV" /> 
+    </MOVERS>
+    <PROTOCOLS>
+
+        <Add mover="PackRotamers" />
+
+    </PROTOCOLS>
+    <OUTPUT />
+</ROSETTASCRIPTS>

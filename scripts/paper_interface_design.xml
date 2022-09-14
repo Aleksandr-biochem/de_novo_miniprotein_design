@@ -1,0 +1,323 @@
+
+
+<ROSETTASCRIPTS>
+
+# Brian Coventry and Longxing Cao 2020
+# Derived (20 versions later) from protocol by Franziska Seeger, TaYi Yu, and Danny Sahtoe
+
+
+# This file contains a lot of arbitrary decisions that may or may not actually improve binding
+# To this end, BC went through and labeled lines with # X / 3 where X refers to how important this is
+# # 0 / 3 -- truly arbitrary
+# # 1 / 3 -- might help
+# # 2 / 3 -- definitely helps
+# # 3 / 3 -- protocol relies on this
+
+# It's hard to experimentally test all parts of xmls, but hopefully these numbers will give you a guideline
+#  as to what is arbitary and what is important
+
+
+
+    <SCOREFXNS>
+        <ScoreFunction name="sfxn" weights="beta_nov16" /> # 0 / 3 -- beta_nov16 vs ref2015. Beta16 was touted as the best, unclear if it is.
+
+        # Should sfxn_relax be a vanilla ScoreFunction? Open question
+        <ScoreFunction name="sfxn_relax" weights="beta_nov16" >
+            <Reweight scoretype="arg_cation_pi" weight="3" /> 
+            <Reweight scoretype="approximate_buried_unsat_penalty" weight="5" />
+            <Set approximate_buried_unsat_penalty_burial_atomic_depth="3.5" />
+            <Set approximate_buried_unsat_penalty_hbond_energy_threshold="-0.5" />
+        </ScoreFunction>
+        <ScoreFunction name="sfxn_design" weights="beta_nov16" >
+            <Reweight scoretype="res_type_constraint" weight="1.5" /> -- required for StructProfileMover
+            <Reweight scoretype="aa_composition" weight="1.0" />
+            <Reweight scoretype="arg_cation_pi" weight="3" /> # 1 / 3 -- Early we thought these were key, unclear now
+            <Reweight scoretype="approximate_buried_unsat_penalty" weight="5" /> # 2 / 3 -- approx works on the computer, however unclear
+            <Set approximate_buried_unsat_penalty_burial_atomic_depth="3.5" />   #             how much buns matter in real life
+            <Set approximate_buried_unsat_penalty_hbond_energy_threshold="-0.5" />
+            <Set approximate_buried_unsat_penalty_hbond_bonus_cross_chain="-1" /> # 1 / 3 -- seemed like a good idea at the time
+        </ScoreFunction>
+    </SCOREFXNS>
+    <TASKOPERATIONS>
+        <SelectBySASA name="PR_monomer_core_sel" mode="sc" state="unbound" probe_radius="2.2" core_asa="15" surface_asa="15" core="0" boundary="1" surface="1" verbose="0" />
+    </TASKOPERATIONS>
+    <RESIDUE_SELECTORS>
+        <Chain name="chainA" chains="A"/>
+        <Chain name="chainB" chains="B"/>
+        <Neighborhood name="interface_chA" selector="chainB" distance="10.0" /> # 1 / 3 -- interface size. 8 - 12 seems reasonable
+        <Neighborhood name="interface_chB" selector="chainA" distance="10.0" /> #          at 8, you have trouble with ARG and LYS though
+        <And name="AB_interface" selectors="interface_chA,interface_chB" />
+        <Not name="Not_interface" selector="AB_interface" />
+        <And name="actual_interface_chA" selectors="AB_interface,chainA" />
+        <And name="actual_interface_chB" selectors="AB_interface,chainB" />
+        <And name="chainB_not_interface" selectors="Not_interface,chainB" />
+
+        <ResidueName name="pro_and_gly_positions" residue_name3="PRO,GLY" />
+
+        <InterfaceByVector name="interface_by_vector" cb_dist_cut="11" nearby_atom_cut="5.5" vector_angle_cut="75" vector_dist_cut="9" grp1_selector="actual_interface_chA" grp2_selector="actual_interface_chB"/>
+
+        <Task name="all_cores" fixed="true" task_operations="PR_monomer_core_sel" packable="false" designable="false"/>
+
+        <And name="for_hydrophobic" selectors="actual_interface_chA,interface_by_vector">
+            <Not selector="all_cores" />
+        </And>
+        <ResiduePDBInfoHasLabel name="HOTSPOT_res" property="HOTSPOT" />
+
+        <Index name="res1" resnums="1" />
+        <Slice name="patchdock_res" indices="%%patchdock_res%%" selector="chainB" />
+
+        <ResidueName name="apolar" residue_name3="ALA,CYS,PHE,ILE,LEU,MET,THR,PRO,VAL,TRP,TYR" />
+
+        <And name="apolar_A" selectors="apolar,actual_interface_chA" />
+        <And name="apolar_B" selectors="apolar,actual_interface_chB" />
+
+        
+        <True name="true_sel" />
+
+
+    </RESIDUE_SELECTORS>
+
+
+    <RESIDUE_SELECTORS>
+        # These are the default paramters to the old TaskOperation LayerDesign
+        <Layer name="surface" select_core="false" select_boundary="false" select_surface="true" use_sidechain_neighbors="true"/>
+        <Layer name="boundary" select_core="false" select_boundary="true" select_surface="false" use_sidechain_neighbors="true"/>
+        <Layer name="core" select_core="true" select_boundary="false" select_surface="false" use_sidechain_neighbors="true"/>
+        <SecondaryStructure name="sheet" overlap="0" minH="3" minE="2" include_terminal_loops="false" use_dssp="true" ss="E"/>
+        <SecondaryStructure name="entire_loop" overlap="0" minH="3" minE="2" include_terminal_loops="true" use_dssp="true" ss="L"/>
+        <SecondaryStructure name="entire_helix" overlap="0" minH="3" minE="2" include_terminal_loops="false" use_dssp="true" ss="H"/>
+        <And name="helix_cap" selectors="entire_loop">
+            <PrimarySequenceNeighborhood lower="1" upper="0" selector="entire_helix"/>
+        </And>
+        <And name="helix_start" selectors="entire_helix">
+            <PrimarySequenceNeighborhood lower="0" upper="1" selector="helix_cap"/>
+        </And>
+        <And name="helix" selectors="entire_helix">
+            <Not selector="helix_start"/>
+        </And>
+        <And name="loop" selectors="entire_loop">
+            <Not selector="helix_cap"/>
+        </And>
+
+    </RESIDUE_SELECTORS>
+
+    <TASKOPERATIONS>
+        <DesignRestrictions name="layer_design_F_boundary_M"> # 2 / 3 -- This is 3 / 3 if you don't have approx, StructProfile, and sap
+                                                                         Rosetta will put hydrophobics on your surface and polars in your core
+                                                                         We do need core polars for interfaces though
+            <Action selector_logic="surface AND helix_start"  aas="DEHKPQR"/>
+            <Action selector_logic="surface AND helix"        aas="EHKQR"/>
+            <Action selector_logic="surface AND sheet"        aas="EHKNQRST"/>
+            <Action selector_logic="surface AND loop"         aas="DEGHKNPQRST"/>
+            <Action selector_logic="boundary AND helix_start" aas="ADEFHIKLMNPQRSTVWY"/>
+            <Action selector_logic="boundary AND helix"       aas="ADEFHIKLMNQRSTVWY"/>
+            <Action selector_logic="boundary AND sheet"       aas="DEFHIKLMNQRSTVWY"/>
+            <Action selector_logic="boundary AND loop"        aas="ADEFGHIKLNPQRSTVWY"/>
+            <Action selector_logic="core AND helix_start"     aas="AFILMPVWY"/>
+            <Action selector_logic="core AND helix"           aas="AFILMVWYDENQSTH"/>
+            <Action selector_logic="core AND sheet"           aas="FILMVWYDENQSTH"/>
+            <Action selector_logic="core AND loop"            aas="AFGILPVWYDENQSTH"/>
+            <Action selector_logic="helix_cap"                aas="DNST"/>
+        </DesignRestrictions>
+    </TASKOPERATIONS>
+    <MOVERS>
+        <AddCompositionConstraintMover name="3trp" > # 2 / 3 -- penalize TRP by 3. This leads to a reasonable number of TRP given everything else
+            <Comp entry="PENALTY_DEFINITION;TYPE TRP;ABSOLUTE 0;PENALTIES 0 3;DELTA_START 0;DELTA_END 1;BEFORE_FUNCTION CONSTANT;AFTER_FUNCTION LINEAR;END_PENALTY_DEFINITION;" />
+        </AddCompositionConstraintMover>
+        <AddCompositionConstraintMover name="2met" > # 2 / 3 -- Rosetta loves MET, but the Bakerlab doesn't.
+            <Comp entry="PENALTY_DEFINITION;TYPE MET;ABSOLUTE 0;PENALTIES 0 2;DELTA_START 0;DELTA_END 1;BEFORE_FUNCTION CONSTANT;AFTER_FUNCTION LINEAR;END_PENALTY_DEFINITION;" />
+        </AddCompositionConstraintMover>
+        <AddCompositionConstraintMover name="30_percent_polar" selector="for_hydrophobic"> # 2 / 3 -- Bad way to prevent totally hydrophobic interfaces. The SapConstraint is a much better method here, but we didn't develop it until after we finished these designs. See adjust_total_netcharge.xml for ideas on how to use it.
+            <Comp entry="PENALTY_DEFINITION;TYPE ASP GLU HIS LYS ASN GLN ARG SER THR TYR;FRACT_DELTA_START -0.01;FRACT_DELTA_END 0.0;PENALTIES 0.1 0 ;FRACTION 0.30;BEFORE_FUNCTION QUADRATIC;AFTER_FUNCTION CONSTANT;END_PENALTY_DEFINITION" />
+        </AddCompositionConstraintMover>
+    </MOVERS>
+    <TASKOPERATIONS>
+
+        <PruneBuriedUnsats name="prune_buried_unsats" allow_even_trades="false" atomic_depth_cutoff="3.5" minimum_hbond_energy="-0.5" /> # 2 / 3 -- see approx comments above. With both enabled, this mostly serves to speed up packing
+
+        <ProteinProteinInterfaceUpweighter name="upweight_interface" interface_weight="3" /> # 3 / 3 -- Massive improvement. Without this, Rosetta leaves your interface full of holes where obvious things can go. Upweighting by 2 is also reasonable here.
+
+        <ProteinInterfaceDesign name="pack_long" design_chain1="0" design_chain2="0" jump="1" interface_distance_cutoff="15"/> # 0 / 3 -- distance cutoff
+
+        <IncludeCurrent name="current" /> # 1 / 3 -- With this, you get to reuse minimized rotamers. This hasn't been tested
+
+        <LimitAromaChi2 name="limitchi2" chi2max="110" chi2min="70" include_trp="True" /> # 1 / 3 -- Bakerlab folklore. Some people don't like this.
+
+        <ExtraRotamersGeneric name="ex1_ex2" ex1="1" ex2aro="1" ex2="0" /> # 2 / 3 -- This has been extensively tested. ex2 wastes time without improving results. ex2aro is hardly a slowdown and improves results. ex1 is a slowdown, but also improves results. Improved results are on the computer, not biochemically.
+
+
+        <OperateOnResidueSubset name="restrict_target_not_interface" selector="chainB_not_interface">
+            <PreventRepackingRLT/>
+        </OperateOnResidueSubset>
+        <OperateOnResidueSubset name="restrict_to_interface" selector="Not_interface">
+            <PreventRepackingRLT/>
+        </OperateOnResidueSubset>
+        <OperateOnResidueSubset name="restrict_target2repacking" selector="chainB">
+            <RestrictToRepackingRLT/>
+        </OperateOnResidueSubset>
+        <OperateOnResidueSubset name="restrict_hotspots2repacking" selector="HOTSPOT_res"> # 1 / 3 -- For rifdock, we found it's better to allow the rifres to redesign. For motif graft, we haven't tested it as much, but with the complicated process that goes into picking the motif residues, we think it's probably better to keep them. (Motif picking is on fully relaxed structures whereas rifdock is very low res)
+            <RestrictToRepackingRLT/>
+        </OperateOnResidueSubset>
+
+        <DisallowIfNonnative name="disallow_GLY" resnum="0" disallow_aas="G" /> # 1 / 3 -- Bakerlab folklore
+        <DisallowIfNonnative name="disallow_PRO" resnum="0" disallow_aas="P" /> # 1 / 3 -- Bakerlab folklore
+
+    	<OperateOnResidueSubset name="restrict_PRO_GLY" selector="pro_and_gly_positions"> # 2 / 3 -- This makes sense, don't drop PRO and GLY
+    		<PreventRepackingRLT/>
+    	</OperateOnResidueSubset>
+
+        <SelectBySASA name="PR_monomer_core" mode="sc" state="unbound" probe_radius="2.2" core_asa="10" surface_asa="10" core="0" boundary="1" surface="1" verbose="0" /> # 0 / 3 -- Honestly, this might even hurt, but it gives a massive 2-3x speedup
+
+    </TASKOPERATIONS>
+    <MOVERS>
+
+        <SwitchChainOrder name="chain1only" chain_order="1" />
+
+        <TaskAwareMinMover name="min" scorefxn="sfxn" bb="0" chi="1" task_operations="pack_long" /> # 1 / 3 -- bb min? We haven't tested it
+
+        <StructProfileMover name="genProfile" add_csts_to_pose="1" consider_topN_frags="100" eliminate_background="0" ignore_terminal_residue="1" only_loops="0" burialWt="0" RMSthreshold="0.6" residue_selector="chainA" /> # 2 / 3 -- You can get by without this, but it gives a massive increase to your success in experimental folding (and mismatch_probability)
+
+        <ClearConstraintsMover name="clear_constraints" />
+
+    </MOVERS>
+    <FILTERS>
+
+        <Sasa name="interface_buried_sasa" confidence="0" />
+
+        <Ddg name="ddg"  threshold="-10" jump="1" repeats="5" repack="1" relax_mover="min" confidence="0" scorefxn="sfxn" extreme_value_removal="1" />
+
+        <ShapeComplementarity name="interface_sc" verbose="0" min_sc="0.55" write_int_area="1" write_median_dist="1" jump="1" confidence="0"/>
+
+        <ScoreType name="total_score_MBF" scorefxn="sfxn" score_type="total_score" threshold="0" confidence="0" />
+        <MoveBeforeFilter name="total_score_monomer" mover="chain1only" filter="total_score_MBF" confidence="0" />
+        <ResidueCount name="res_count_MBF" max_residue_count="9999" confidence="0"/>
+        <MoveBeforeFilter name="res_count_monomer" mover="chain1only" filter="res_count_MBF" confidence="0" />
+
+        <CalculatorFilter name="score_per_res" equation="total_score_monomer / res" threshold="-3.5" confidence="0">
+            <Var name="total_score_monomer" filter="total_score_monomer"/>
+            <Var name="res" filter="res_count_monomer"/>
+        </CalculatorFilter>
+
+
+        <BuriedUnsatHbonds name="buns_heavy_ball_1.1D" use_reporter_behavior="true" report_all_heavy_atom_unsats="true" scorefxn="sfxn" residue_selector="AB_interface" ignore_surface_res="false" print_out_info_to_pdb="true" confidence="0" use_ddG_style="true" burial_cutoff="0.01" dalphaball_sasa="true" probe_radius="1.1" max_hbond_energy="1.5" burial_cutoff_apo="0.2" />
+
+        <ContactMolecularSurface name="contact_molecular_surface" distance_weight="0.5" target_selector="chainA" binder_selector="chainB" confidence="0" />
+        <ContactMolecularSurface name="contact_patch" distance_weight="0.5" target_selector="patchdock_res" binder_selector="chainA" confidence="0" />
+        <ContactMolecularSurface name="contact_patch_apolar" distance_weight="0.5" target_selector="patchdock_res" binder_selector="chainA" apolar_target="true" confidence="0" />
+        <ContactMolecularSurface name="contact_patch_apolar_sq5" distance_weight="0.5" target_selector="patchdock_res" binder_selector="chainA" apolar_target="true" near_squared_size="5" confidence="0" />
+
+
+        <SSPrediction name="pre_mismatch_probability" confidence="0" cmd="%%runpsipred_single%%" use_probability="1" mismatch_probability="1" use_svm="0" />
+        <MoveBeforeFilter name="mismatch_probability" mover="chain1only" filter="pre_mismatch_probability" confidence="0" />
+
+
+        <SSShapeComplementarity name="ss_sc_pre" verbose="0" confidence="0" />
+        <MoveBeforeFilter name="ss_sc" mover="chain1only" filter="ss_sc_pre" confidence="0"/>
+
+        <ContactMolecularSurface name="contact_molecular_surface_ap_target" distance_weight="0.5" target_selector="apolar_B" binder_selector="chainA" confidence="0" />
+        <ContactMolecularSurface name="contact_molec_sq5_ap_target" distance_weight="0.5" target_selector="apolar_B" binder_selector="chainA" confidence="0" near_squared_size="5" />
+
+        <ContactMolecularSurface name="contact_molecular_surface_apap_target" distance_weight="0.5" target_selector="apolar_B" binder_selector="chainA" confidence="0" apolar_target="true" />
+        <ContactMolecularSurface name="contact_molec_sq5_apap_target" distance_weight="0.5" target_selector="apolar_B" binder_selector="chainA" confidence="0" near_squared_size="5" apolar_target="true" />
+
+
+
+        <ContactMolecularSurface name="contact_molecular_surface_ap_binder" distance_weight="0.5" target_selector="apolar_A" binder_selector="chainB" confidence="0" />
+        <ContactMolecularSurface name="contact_molec_sq5_ap_binder" distance_weight="0.5" target_selector="apolar_A" binder_selector="chainB" confidence="0" near_squared_size="5" />
+
+        <ContactMolecularSurface name="contact_molecular_surface_apap_binder" distance_weight="0.5" target_selector="apolar_A" binder_selector="chainB" confidence="0" apolar_target="true" />
+        <ContactMolecularSurface name="contact_molec_sq5_apap_binder" distance_weight="0.5" target_selector="apolar_A" binder_selector="chainB" confidence="0" near_squared_size="5" apolar_target="true" />
+
+
+
+
+        <Time name="timed"/>
+    </FILTERS>
+    <SIMPLE_METRICS>
+
+        <SapScoreMetric name="sap_score" score_selector="chainA" />
+        <SapScoreMetric name="sap_score_target" score_selector="chainB" />
+        <SapScoreMetric name="binder_blocked_sap" score_selector="chainA" sap_calculate_selector="chainA" sasa_selector="true_sel" />
+        <SapScoreMetric name="target_blocked_sap" score_selector="chainB" sap_calculate_selector="chainB" sasa_selector="true_sel" />
+
+        <CalculatorMetric name="binder_delta_sap" equation="binder_sap_score - binder_blocked_sap" >
+            <VAR name="binder_sap_score" metric="sap_score"/>
+            <VAR name="binder_blocked_sap" metric="binder_blocked_sap"/>
+        </CalculatorMetric>
+
+        <CalculatorMetric name="target_delta_sap" equation="target_sap_score - target_blocked_sap" >
+            <VAR name="target_sap_score" metric="sap_score_target"/>
+            <VAR name="target_blocked_sap" metric="target_blocked_sap"/>
+        </CalculatorMetric>
+
+    </SIMPLE_METRICS>
+    <MOVERS>
+
+
+        <FastDesign name="FastDesign" scorefxn="sfxn_design" repeats="1" task_operations="current,limitchi2,ex1_ex2,restrict_to_interface,restrict_target2repacking,restrict_hotspots2repacking,disallow_GLY,disallow_PRO,PR_monomer_core,upweight_interface,restrict_PRO_GLY,prune_buried_unsats,layer_design_F_boundary_M" batch="false" ramp_down_constraints="false" cartesian="false" bondangle="false" bondlength="false" min_type="dfpmin_armijo_nonmonotone" relaxscript="%%CAO_2021_PROTOCOL%%/old_beta_16_ref.rosettacon2018.txt" >
+            # 3 / 3 -- relax script. The rosettacon2018 relax script gives much better performance than the original FastRelax-based one. Newer ones likely work too.
+            # 1 / 3 -- cartesian. Through much testing, cartesian artifically gives better numbers. However, controlled experiments will show that the sequences it produce do not have intrinsically better metrics. It's also way slower.
+            # 0 / 3 -- min_type. We haven't tested this very much.
+            # 1 / 3 -- old ref weights. It's just what we've always used. Our aa_comps are trained based on these.
+            <MoveMap name="MM" >
+                    <Chain number="1" chi="true" bb="true" /> # 2 / 3 -- flexible binder backbone. We haven't explicitly tested this, but we feel it's important
+                    <Chain number="2" chi="true" bb="false" /> # 1 / 3 -- fixed target backbone. Cuts down on metric noise and prevents rosetta from doing bad things
+                    <Jump number="1" setting="true" /> # 3 / 3 -- You absolutely must let the two proteins move relative to one another
+            </MoveMap>
+        </FastDesign>
+
+        <FastRelax name="FastRelax" scorefxn="sfxn_design" repeats="1" batch="false" ramp_down_constraints="false" cartesian="false" bondangle="false" bondlength="false" min_type="dfpmin_armijo_nonmonotone" task_operations="restrict_target_not_interface,ex1_ex2,limitchi2,prune_buried_unsats" >
+            # 1 / 3 -- Do you even need to run FastRelax? We've never actually tested it.
+            <MoveMap name="MM" >
+                <Chain number="1" chi="true" bb="true" />
+                <Chain number="2" chi="true" bb="false" />
+                <Jump number="1" setting="true" />
+            </MoveMap>
+        </FastRelax>
+
+
+    </MOVERS>
+    <APPLY_TO_POSE>
+    </APPLY_TO_POSE>
+    <PROTOCOLS>
+        <Add filter="timed" />
+
+        # apply sequence constraints
+        <Add mover="3trp" />
+        <Add mover="2met" />
+        <Add mover="30_percent_polar" />
+        <Add mover="genProfile" />
+
+        # perform sequence optimization
+        <Add mover="FastDesign" />
+        <Add mover="FastDesign" />
+        <Add mover="clear_constraints" />
+        <Add mover="FastRelax" />
+
+        # calculate interface metrics
+        <Add filter_name="interface_buried_sasa" />
+        <Add filter_name="ddg" />
+        <Add filter_name="interface_sc" />
+        <Add filter_name="score_per_res" />
+        <Add filter="buns_heavy_ball_1.1D" />
+        <Add filter="mismatch_probability" />
+        <Add filter="contact_molecular_surface" />
+        <Add filter="contact_patch" />
+        <Add filter="contact_patch_apolar" />
+        <Add filter="contact_patch_apolar_sq5" />
+        <Add filter="ss_sc" />
+
+        <Add filter="contact_molecular_surface_ap_target" />
+        <Add filter="contact_molec_sq5_ap_target" />
+        <Add filter="contact_molecular_surface_apap_target" />
+        <Add filter="contact_molec_sq5_apap_target" />
+        
+
+        <Add metrics="sap_score" />
+        <Add metrics="sap_score_target" />
+        <Add metrics="binder_delta_sap" />
+        <Add metrics="target_delta_sap" />
+
+        <Add filter="timed" />
+    </PROTOCOLS>
+</ROSETTASCRIPTS>

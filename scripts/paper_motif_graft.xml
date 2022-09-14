@@ -1,0 +1,139 @@
+<ROSETTASCRIPTS>
+
+# Brian Coventry and Longxing Cao 2020
+
+# This xml does a superposition style motif graft. The goal here is to be as fast as possible. We filter
+#  on SASA because it's a rather conserved property of the interface that's quick to compute. Calculating
+#  contact_patch would be better, but we didn't do that for the targets in the paper.
+
+
+
+    <FILTERS>
+        <Sasa name="interface_buried_sasa_filter_before" threshold="%%initial_sasa_threshold%%" confidence="1" />
+
+        # For the most part, the scaffold sidechains are too big for the interface. This means that during
+        # MotifGraft, when this filter is called, the SASA estimate will be too large. This is good because
+        # it means we're only wasting time and not throwing good stuff away.
+        <CompoundStatement name="motif_graft_filter" >
+            <AND filter_name="interface_buried_sasa_filter_before" />
+        </CompoundStatement>
+    </FILTERS>
+	<MOVERS>
+        # This is set up to graft by superposition. We're not cutting the scaffold proteins
+        # In this way, we don't need to worry later about rebuild the core of the scaffold
+		<MotifGraft name="motif_grafting"
+			context_structure="%%contextpdb%%"
+			motif_structure="%%motifpdb%%"
+			RMSD_tolerance="0.5" 
+			NC_points_RMSD_tolerance="1.0"
+            hotspots="%%hotspots%%"
+			clash_score_cutoff="10" 
+			clash_test_residue="ALA"
+			full_motif_bb_alignment="1"  
+			allow_independent_alignment_per_fragment="0"
+			graft_only_hotspots_by_replacement="1" 
+			only_allow_if_N_point_match_aa_identity="0"
+			only_allow_if_C_point_match_aa_identity="0" 
+			revert_graft_to_native_sequence="1" 
+			allow_repeat_same_graft_output="0" 
+            reinit_every_apply="1"
+            output_cluster_tolerance="2.0" 
+            output_filter="motif_graft_filter"/>
+		<MultiplePoseMover name="fast_pack_sasa_cut" max_input_poses="50">
+		<SELECT>
+		</SELECT>
+			<ROSETTASCRIPTS>
+                <SCOREFXNS>
+                    <ScoreFunction name="sfxn" weights="beta_nov16" />
+                    # This is a bare-bones scorefunction that is used purely to fill the interface
+                    #  with a physically realistic set of side chains for sasa calculations
+                    <ScoreFunction name="sfxn_fast" weights="beta_nov16_soft" >
+                        <Reweight scoretype="lk_ball" weight="0" />
+                        <Reweight scoretype="lk_ball_iso" weight="0" />
+                        <Reweight scoretype="lk_ball_bridge" weight="0" />
+                        <Reweight scoretype="lk_ball_bridge_uncpl" weight="0" />
+                        <Reweight scoretype="fa_elec" weight="0" />
+                        <Reweight scoretype="fa_intra_atr_xover4" weight="0" />
+                        <Reweight scoretype="fa_intra_rep_xover4" weight="0" />
+                        <Reweight scoretype="fa_intra_sol_xover4" weight="0" />
+                        <Reweight scoretype="fa_intra_elec" weight="0" />
+                        <Reweight scoretype="hbond_sr_bb" weight="0" />
+                        <Reweight scoretype="hbond_lr_bb" weight="0" />
+                        <Reweight scoretype="hbond_bb_sc" weight="0" />
+                        <Reweight scoretype="hbond_sc" weight="0" />
+
+                        # This will be in Rosetta master "someday"
+                        Set etable_no_hydrogens="true" />
+
+                    </ScoreFunction> 
+                </SCOREFXNS>
+                <RESIDUE_SELECTORS>
+                    <ResiduePDBInfoHasLabel name="HOTSPOT_Res" property="HOTSPOT" />
+                    <Chain name="chainA" chains="A"/>
+                    <Chain name="chainB" chains="B"/>
+                    <Neighborhood name="interface_chA" selector="chainB" distance="8.0" />
+                    <Neighborhood name="interface_chB" selector="chainA" distance="8.0" />
+                    <And name="AB_interface" selectors="interface_chA,interface_chB" />
+                    <Not name="Not_interface" selector="AB_interface" />
+
+                    <ResidueName name="pro_gly_cys_positions" residue_name3="PRO,GLY,CYS,CYD" />
+                </RESIDUE_SELECTORS>
+
+                <TASKOPERATIONS>
+                    <ProteinProteinInterfaceUpweighter name="upweight_interface" interface_weight="3" />
+                    <IncludeCurrent name="current" />
+
+                    <OperateOnResidueSubset name="restrict_target" selector="chainB">
+                        <PreventRepackingRLT/>
+                    </OperateOnResidueSubset>
+                    <OperateOnResidueSubset name="prevent_hotspots_from_repacking" selector="HOTSPOT_Res">
+                        <PreventRepackingRLT/>
+                    </OperateOnResidueSubset>
+                    <OperateOnResidueSubset name="restrict_to_interface" selector="Not_interface">
+                        <PreventRepackingRLT/>
+                    </OperateOnResidueSubset>
+                    <SelectBySASA name="PR_monomer_core" mode="sc" state="monomer" probe_radius="2.2" core_asa="10" surface_asa="10" core="0" boundary="1" surface="1" verbose="0" />
+
+                    <OperateOnResidueSubset name="restrict_PRO_GLY_CYS" selector="pro_gly_cys_positions">
+                        <PreventRepackingRLT/>
+                    </OperateOnResidueSubset>
+
+                    <RestrictAbsentCanonicalAAS name="AVILF"  keep_aas="AVILF" />
+                </TASKOPERATIONS>
+                <FILTERS>
+                    <Sasa name="interface_buried_sasa_cut" threshold="%%initial_sasa_threshold%%" confidence="1" />
+                </FILTERS>
+                <MOVERS>
+
+                    <SwitchChainOrder name="binder_chain_A" chain_order="21" />
+
+                    # This mover is used purely to fill the interface with sidechains that fit. We only do this to get an estimate as SASA
+                    <PackRotamersMover name="fast_pack_except_hotspots" scorefxn="sfxn_fast" task_operations="current,restrict_to_interface,restrict_target,PR_monomer_core,restrict_PRO_GLY_CYS,prevent_hotspots_from_repacking,upweight_interface,AVILF"/>
+
+                </MOVERS>
+                <APPLY_TO_POSE>
+                </APPLY_TO_POSE>
+                <PROTOCOLS>
+                    <Add mover="binder_chain_A" /> 
+
+                    <Add mover="fast_pack_except_hotspots" />
+
+                    <Add filter_name="interface_buried_sasa_cut" />
+
+                </PROTOCOLS>
+                <OUTPUT />
+            </ROSETTASCRIPTS>
+		</MultiplePoseMover>
+
+	</MOVERS>
+
+	<APPLY_TO_POSE>
+	</APPLY_TO_POSE>
+
+	<PROTOCOLS >
+	   <Add mover_name="motif_grafting" />
+	   <Add mover_name="fast_pack_sasa_cut" />
+	</PROTOCOLS>
+
+
+</ROSETTASCRIPTS>
