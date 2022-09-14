@@ -1,6 +1,6 @@
 # Mini-protein *de novo* design pipeline
 
-This is an automated remake of the [*de novo* design protocol by Longxing Cao and Brian Coventry](https://www.nature.com/articles/s41586-022-04654-9#data-availability). Clone this repository to start a new design workflow.  
+This is an automated remake of the [*de novo* mini-protein design protocol by Longxing Cao and Brian Coventry](https://www.nature.com/articles/s41586-022-04654-9#data-availability). Clone this repository to start a new design workflow.  
   
 The original scripts and the corresponding supplementary materials are available by [download link](files.ipd.uw.edu/pub/robust_de_novo_design_minibinders_2021/supplemental_files/scripts_and_main_pdbs.tar.gz). The full supplement is available [online](files.ipd.uw.edu/pub/robust_de_novo_design_minibinders_2021/supplemental_files/download_supplement.txt)
 
@@ -42,10 +42,10 @@ Use `prepare_polyV_scaffolds.py` to prepare poly-Valine scaffolds pdbs for docki
 
 ```
 $SCRIPTS/prepare_polyV_scaffolds.py -h
-sbatch --job-name="scaffold_prep" --partition=cpu --nodelist=node_name $SCRIPTS/prepare_polyV_scaffolds.py -i HHH_bc 
+sbatch --job-name="polyV_prep" --partition=cpu --nodelist=node_name $SCRIPTS/prepare_polyV_scaffolds.py -i HHH_bc 
 ```
 
-As a result `HHH_bc_polyV.list` is produced. Copy this file into the folder, where the binder design process will be performed. **Note:** poly-Valone scaffolds should originate from exactly same scaffold files as in `.list` from previous step. 
+As a result `HHH_bc_polyV.list` is produced. Copy this file into the folder, where the binder design process will be performed. **Note:** poly-Valine scaffolds should originate from exactly same scaffold files as in `.list` from previous step. 
 
 ## 1. Target preparation
 
@@ -77,26 +77,25 @@ $SCRIPTS/prepare_target_structure.py -i 7jzm.pdb -r B
 
 ### 1.2 Select target residues for PatchDock and RifDock
 
-In the protocol we are aiming to design binders making contacts with the hydrophobic residues on selected interface. The file `receptor_with_sap_scores.pdb` is a receptor structure with per residue SAP scores, which will help to make this choice. This structure can be conveniently visualized in PyMol using `per_res_sap.py` script provided in `scripts` dir:
+We are aiming to design binders making contacts with the hydrophobic residues on selected interface. The file `receptor_with_sap_scores.pdb` is a receptor structure with per residue SAP scores, which will help to make this choice. This structure can be conveniently visualized in PyMol using `per_res_sap.py` script provided in `scripts` dir:
 
 ```
-# execute script in PyMol terminal after loading the `receptor_with_sap_scores.pdb`
+# execute the script in PyMol terminal after loading the `receptor_with_sap_scores.pdb`
 run absolute/path/to/per_res_sap.py
 ```
 
-First we select 3-9 residues for PatchDock to aim for. **Consider these when choosing:**
+Select 3-9 residues for PatchDock to aim for. **Consider these when choosing:**
 - At the end of the protocol, you will filter on how much contact your binders are making with these residues. Pick your residues such that a binder will be able to interact with all of them at once.
 - Clumps of residues are better than sparse residues. 
 - The bigger residue SAP score the better. However, any hydrophobic residues with a SAP score > 1 are probably good. But again, focus on clumps. If there are two distinct clumps, run this protocol twice. 
 - Ideally, one would only pick hydrophobic residues (ALA, VAL, THR, ILE, PRO, LEU, MET, PHE, TYR, TRP). However, if your site is so hard that polar residues must be picked, this is acceptable (there's a flag to give to RifDock if you do this). Know though that by needing to pick polar residues, your success rate may be lowered.
 
-Write selected comma-separated residues numbers into a text file `patchdock_residues.txt`:
+Write selected comma-separated residues numbers into a text file `patchdock_residues.txt`. **Note:** In case you have trimmed the target protein, you have to carefully adjust the numbers of residues to match the trimmed structure. It is better to check the selection in a molecular viewer. 
+
 ```
 # for example
 echo '116,122,123,153,156,157,159,172' > patchdock_residues.txt
 ```
-
-**Note:** In case you have trimmed the target protein, you have to carefully adjust the numbers of residues to match the trimmed structure. It is better to check the selection in a molecular viewer.
 
 Next, write residues for RifGen as `rifgen_residues.txt`. A typical RifGen residue selection will include all of the PathDock residues and their immediate neighbors, usually about 10-25 residues. Fewer residues selected is often best because we want RifDock to focus on your PathDock residues.
 
@@ -109,7 +108,7 @@ echo '115,116,117,121,122,123,124,152,153,154,155,156,157,158,159,160,171,172,17
 
 ### 2.1 Run RifGen
 
-Create a cache dir for RifGen somewhere on your system. This dir is populated on first run and then never changes. Execute `run_rifgen.py` providing this cache dir. RifGen run will take about 6-9 hours, so it is better to launch it with slurm:
+Create a cache dir for RifGen somewhere on your system. This dir is populated on first run and then never changes. Execute `run_rifgen.py` providing this cache dir. RifGen run will take about 6-9 hours, so it is better to launch with slurm:
 
 ```
 cd 2_docking
@@ -117,7 +116,7 @@ cd 2_docking
 sbatch --job-name="rifgen" --partition=cpu --nodelist=node_name ../scripts/run_rifgen.py --cache /home/user/tmp/rifgen
 ```
 
-Apart from the log file and `rifgen_out` dir, a file `receptor_centered_chainchanged.pdb` is generated. This target protein chain is centered, renamed to B and used for the further dockings, so don't move or rename it. **Note:** It is also critical to keep the output rifgen.log file as the information from it is used by further scripts.
+Apart from the log file and `rifgen_out` dir, a file `receptor_centered_chainchanged.pdb` is generated. This target protein chain is centered, renamed to B and used for the further dockings, so don't move or rename it. **Note:** It is also critical to keep the output `rifgen.log` file as the information from it is used by further scripts.
 
 ### 2.2 Run PatchDock
 
@@ -127,7 +126,7 @@ PatchDock runs fast, however if you are dealing with thousands of scaffolds you 
 # the script has help section 
 $SCRIPTS/prepare_patchdock.py -h
 
-# distribute jobs between 2 nodes, 10 cpus each
+# distribute the jobs between 2 nodes, 10 cpus each
 $SCRIPTS/prepare_patchdock.py -i ../HHH_bc_polyV.list -n node_name1,node_name2 -c 10
 ```
 
@@ -151,7 +150,7 @@ $SCRIPTS/prepare_rifdock.py -h
 $SCRIPTS/prepare_rifdock.py --cache /home/user/tmp/rifdock -i ../HHH_bc.list -n node_name1,node_name2 -c 10
 ```
 
-RifDock is likely to require manual `rifdock.flag` tuning. For that purpose, first launch the trial run, which will perform the docking for one scaffold only in about 4-5 mins:
+RifDock requires manual `rifdock.flag` tuning. For that purpose, first launch the trial run, which will perform the docking for one scaffold only in about 4-5 mins:
 
 ```
 ./run_test_rifdock.sh
@@ -168,10 +167,10 @@ cd rifdock_out
 silentls scaffold_name.silent | shuf | head -n 10 | silentextractspecific
 ```
 
-The tuning goal is to achieve 300 docking outputs per one scaffold. If you have <300 outputs after test run, delete `rifdock_out` dir and change some `rifdock.flag` parameters manually. Here is a brief advice and what flags to tackle:
-- `-require_hydrophobic_residue_contacts` by default is set to number of PatchDock residues - 2. The less hydrophobic residue interactions you require, the more outputs you will get. Decrease by 1 and start again.
+The tuning goal is to achieve a particular number of docking outputs per scaffold. By defaukt we aim for 300 (as specified in `-n_pdb_out_global` at `rifdock.flag`), but you may want to produce fewer or more docking outputs. If you have less outputs then expected after the test run, delete `rifdock_out` dir and change some `rifdock.flag` parameters manually. Here is a brief advice on what flags to tackle:
+- `-require_hydrophobic_residue_contacts` by default is set to the number of PatchDock residues - 2. The less hydrophobic residue interactions you require, the more outputs you will get. Decrease by 1 and run test again.
 - `-rif_dock:redundancy_filter_mag` controls the RMSD between outputs after clustering. The default is 0.5Å, you can lower it to get more outputs. A goal would be to ensure that your outputted interfaces are at least 0.3Å RMSD different from each other.
-- `-xform_pos` passes the file from `scripts` dir defining the sampling rate. By default you will have a `small_sampling_10deg_by1.7_1.5A_by_0.6.x` defining 10K pertrubations. You can provide `large_sampling_10deg_by1.1_2A_by0.35.x` to sample 100K perturbations. Going from the small file to the large file will increase your runtime by 10-fold, however, you will probably get more output.
+- `-xform_pos` passes the file from `scripts` dir defining the sampling rate. By default you have a `small_sampling_10deg_by1.7_1.5A_by_0.6.x` defining 10K pertrubations. You can provide `large_sampling_10deg_by1.1_2A_by0.35.x` to sample 100K perturbations. Going from the small file to the large file will increase your runtime by 10-fold, however, you will probably get more output.
 
 See the full tuning discussion in original supplementary manual. You can look throgh `rifdock.flag` to investigate more options for tuning.
 
@@ -181,13 +180,13 @@ After tuning, make sure to clear `rifdock_out` and launch all dockings:
 ./run_rifdock_jobs.sh
 ```
 
-Once the jobs are finished collect all the outputs into a single silent file:
+Once the jobs are finished, collect all the outputs into a single silent file:
 
 ```
 cat rifdock_out/*.silent > rifdock_out.silent
 ```
 
-**Note:** the aim of 300 docking outputs per scaffold is provided by the authors and seemingly allows to achieve a reasonably large sampling when having \~20K scaffolds. You may want to work with a smaller sampling but remember that at this version of the protocol large sampling appears crucial for success.
+**Note:** the aim of 300 docking outputs per scaffold is provided by the authors and seemingly allows to achieve reasonably large sampling when having \~20K scaffolds. You may want to work with a smaller sampling but remember that at this version of the protocol large sampling appears crucial for success.
 
 ## 3. Interface design on dockings
 
@@ -213,7 +212,7 @@ When jobs finish, collect the outputs using the python script providing the pred
 $SCRIPTS/collect_outputs.py --predictor predictor --design pilot_design
 ```
 
-This will produce `predictor_score_combined.sc`, `design_combined.sc` and `design_combined.silent`. Use the `.sc` files and `predictor_filter.ipynb` code to obtain the list of filtered docks `predicted_fastdesign_tags.list`. Then slice this dock from combined silent file and use them for interface design:
+This will produce `predictor_score_combined.sc`, `design_combined.sc` and `design_combined.silent`. Use the `.sc` score files and `predictor_filter.ipynb` code to obtain the list of filtered docks `predicted_fastdesign_tags.list`. Then slice these docks from combined silent file and use them for interface design:
 
 ```
 cat predicted_fastdesign_tags.list | silentslice path/to/rifdock_out.silent > rifdock_out_filtered.silent
@@ -221,7 +220,7 @@ cat predicted_fastdesign_tags.list | silentslice path/to/rifdock_out.silent > ri
 
 ### 3.2 Interface design
 
-Setup and run design using the script, providing the desired docks set. If you have not conducted filtering, then it will be convinient to setup design directly at `3_interface_design_on_docks`. Otherwise you could create a neighboor `full_design` dir and setup design from there.
+Setup and run design using the `prepare_design.py` script, providing the desired docks set. If you have not conducted filtering, then it will be convinient to setup design directly at `3_interface_design_on_docks`. Otherwise you may create a neighboor dir `full_design` to setup design from there.
 
 ```
 # optional
@@ -254,7 +253,7 @@ sbatch --job-name="motif_extraction" --partition=cpu --nodelist=node_name $SCRIP
 - This step can produce as much as 4 files for every structure you give it in very short order. If that number of files is going to overload your system, you can pass `--less_motifs` flag, which will change the ddg threshold for motif extraction to -25. This will probably reduce the number of outputs to 0.2 files per structure, but you'll still have the really good ones.
 - You can pass `--dump_og` to the above command for better visualization of the motifs (this dumps the motif in the presense of the target molecule). The downside is that we will get 50% more files and probably 10x more data.
 
-Pick the final motif list, providing the number of motifs you want to use. A 1000 motifs can be a good choice. Consider that it takes about 1h calculatins per scaffold batch–motif combination (1 cpu, 1-2GB ram).  
+Pick the final motif list, providing the number of motifs you want to use. A 1000 motifs can be a good choice. Consider that it takes about 1h of calculations per scaffold batch–motif combination (1 cpu, 1-2GB ram).  
 
 ```
 $SCRIPTS/finalize_motifs.py -n 1000
@@ -331,24 +330,14 @@ Ideally, you'd be taking the 90th percentile and above according to these metric
 
 In order to run this protocol from start to finish, you will need the following software:
 
-- **Rosetta**. You will need a relatively new versions (newer than December 2020). Also, you need to compile with HDF5 support. (Add extras=hdf5 to your scons command)
+- **Rosetta**. You will need a relatively new version (newer than December 2020). Also, you need to compile with HDF5 support. (Add extras=hdf5 to your scons command)
 - **DAlphaBall**. Part of rosetta. Go to rosetta/external/DAlpahBall and type "make". DAlphaBall.gcc will be produced.
-- **PyRosetta**. All python scripts in protocol assume PyRosetta is installed
-- **PatchDock**. Available online as a pre-compiled binary
-- **RifDock**. Hard to compile. Requires a separate build of Rosetta. Available here: https://github.com/rifdock/rifdock
-- **silent_tools**. Available here: https://github.com/bcov77/silent_tools (Also available in $CAO_2021_PROTOCOL/github_backup)
+- **PyRosetta**. All python scripts in protocol assume PyRosetta is installed within your python environment. 
+- **PatchDock**. Available [online](https://bioinfo3d.cs.tau.ac.il/PatchDock/php.php) as a pre-compiled binary
+- **RifDock**. Requires a separate build of Rosetta and must be compiled with **gcc7**. Available [at GitHub](https://github.com/rifdock/rifdock)
+- **silent_tools**. Available [at GitHub](https://github.com/bcov77/silent_tools)
 - **PsiPred**. After installation, you'll need to identify the location of runpsipred_single which will be referred to as RUNPSIPRED_SINGLE
-- **motif_clustering/cluster**. - Get this from here: https://github.com/LongxingCao/ppi_tools (Also available in $CAO_2021_PROTOCOL/github_backup)
+- **motif_clustering/cluster**. - Get this from [GitHub](https://github.com/LongxingCao/ppi_tools)
 
 You'll also need this database (somewhat optional, but gives better results)
 ss_grouped_vall_all.h5 -- files.ipd.uw.edu/pub/modular_repeat_protein_2020/ss_grouped_vall_all.h5
-SS_GROUPED_VALL_ALL will refer to the full-path of this file.
-
-
-The path to cao_2021_protocol will be listed as $CAO_2021_PROTOCOL. You can save yourself some work by running this command
-export CAO_2021_PROTOCOL=/the/full/path/to/cao_2021_protocol
-
-Now bash will automatically fill $CAO_2021_PROTOCOL with the full path, so you can just copy/paste the commands into your terminal.
-
-You can even put that in your .bashrc. It might be wise to to the same for $ROSETTA
-
