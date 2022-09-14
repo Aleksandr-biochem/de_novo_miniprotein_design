@@ -288,23 +288,22 @@ Inteface design on graftings is prepared, launched and summarized the same way a
 This step can be done automatically with `filter_designs.py`. 
 
 ```
+cd 6_final_filtering
 $SCRIPTS/designs_filter.py -h
 
-# you can provide several folders to filter. See `-h` for more options
-scripts/designs_filter.py -i design1,design2
+# you can provide several silent files to filter. See `-h` for more options
+scripts/designs_filter.py -i ../3_interface_design_on_docks/design_combined.silent,../5_interface_design_on_grafts/design_combined.silent
 ```
 
-The script will print stats on filtering with hard cuts and best effort percentile, and produce `filtered_{parsed folders}` dir with filtered designs and a plot `terms_distributios.png` with terms distributions among designs subjected to filtering.
+The script will print stats on filtering with hard cuts and best effort percentile, and produce silent with filtered designs and a plot `terms_distributios.png` with terms distributions among designs subjected to filtering.
 
-If you have only few designs passing the hard cuts, you can filter with flag `-hard_cut_only` to save these designs skipping the best effort search.
-
-If you pass `-p` flag with number/`all` velue, some of the filtered designs will be extracted as pdb into `designs_pdb` subdir insede the `filtered` dir. In order to extract binder sequence use `extract_protein_sequence.py` providing a `-i` directory of pdb files or `-f` a single pdb file. This script can be applied to extract sequence from pdbs of motifs, graftings and unfiltered designs too.
+If you pass `-p` flag with number/`all` velue, some of the filtered designs will be extracted as pdb into `designs_pdb` subdir. In order to extract binder sequence use `extract_protein_sequence.py` providing a `-i` directory of pdb files or `-f` a single pdb file. This script can be applied to extract sequence from pdbs of motifs, graftings and unfiltered designs too.
 
 ```
 $SCRIPTS/extract_protein_sequence.py -i filtered_design/designs_pdb
 ```
 
-**Note:** The designs filtration procedure may require manual filter adjustment, therefore you may want to download scores `.sc` files from previous step and the `final_filtering.ipynb` to experiment in hand. 
+**Note:** The designs filtration procedure may require manual filter adjustment, therefore you may want to download scores `.sc` files of the corresponding designs and the `final_filtering.ipynb` to experiment in hand. 
 
 Here are coments on filtering step from the original *de novo* design pipeline description:
 
@@ -324,7 +323,6 @@ And then trying to optimize the following metrics until they reach the number th
 - contact_molec_sq5_apap_target
 
 Ideally, you'd be taking the 90th percentile and above according to these metrics. If you're only taking the top 20th percentile, you may need to go back and make more designs.
-
 
 ## Programs and environment setup
 
