@@ -2,7 +2,7 @@
 
 This is an automated remake of the [*de novo* mini-protein design protocol by Longxing Cao and Brian Coventry](https://www.nature.com/articles/s41586-022-04654-9#data-availability). Clone this repository to start a new design workflow.  
   
-The original scripts and the corresponding supplementary materials are available by [download link](files.ipd.uw.edu/pub/robust_de_novo_design_minibinders_2021/supplemental_files/scripts_and_main_pdbs.tar.gz). The full supplement is available [online](files.ipd.uw.edu/pub/robust_de_novo_design_minibinders_2021/supplemental_files/download_supplement.txt)
+The original scripts and the corresponding supplementary materials are available by [download link](files.ipd.uw.edu/pub/robust_de_novo_design_minibinders_2021/supplemental_files/scripts_and_main_pdbs.tar.gz). Before working with this protocol, I would suggest reading through the `cao_2021_protocol_guide.txt` in aformentioned supplement to get a full idea about mini-binder *de novo* design. The full supplement is available [online](files.ipd.uw.edu/pub/robust_de_novo_design_minibinders_2021/supplemental_files/download_supplement.txt)
 
 ## Before running any steps
 
