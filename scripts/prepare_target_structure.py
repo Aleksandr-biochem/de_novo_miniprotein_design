@@ -13,6 +13,7 @@ from pyrosetta.rosetta import *
 parser = argparse.ArgumentParser(description='PDB structure preparation for binder design')
 parser.add_argument('-i', nargs=1, help='Input structure file name', type=str, required=True)
 parser.add_argument('-r', nargs=1, help='Receptor chain name in the input file. For example: A', type=str, required=True)
+parser.add_argument('--just_sap', help='Only compute per residue SAP scores for the protein', action='store_true')
 parser.add_argument('--just_relax', help='Relax the protein and compute SAP prior to manual trimming', action='store_true')
 parser.add_argument('--trimmed', help='Finish preparation of manually trimmed target', action='store_true')
 args = parser.parse_args()
@@ -65,24 +66,25 @@ if not args.trimmed:
 	os.rename("receptor_0001.pdb",
 			  "receptor_with_sap_scores.pdb")
 
+	if not args.just_sap:
+		## relax the protein in Rosetta
 
-	## relax the protein in Rosetta
+		print(f"Relaxing the protein in Rosetta\n")
+		relax_args = [os.environ['ROSETTA'],
+					  "-parser:protocol", f"{os.environ['SCRIPTS']}/relax_structure.xml",
+					  "-beta_nov16",
+					  "-s", "receptor_with_sap_scores.pdb"]
 
-	print(f"Relaxing the protein in Rosetta\n")
-	relax_args = [os.environ['ROSETTA'],
-				  "-parser:protocol", f"{os.environ['SCRIPTS']}/relax_structure.xml",
-				  "-beta_nov16",
-				  "-s", "receptor_with_sap_scores.pdb"]
+		process = subprocess.Popen(relax_args)
+		returncode = process.wait()
 
-	process = subprocess.Popen(relax_args)
-	returncode = process.wait()
-
-	os.rename("receptor_with_sap_scores_0001.pdb",
-			  "receptor_relaxed.pdb")
+		os.rename("receptor_with_sap_scores_0001.pdb",
+				  "receptor_relaxed.pdb")
 
 
 # if we are working with the structure requiring cleaning and relaxation
-if not args.just_relax:
+
+if not args.just_relax and not args.just_sap:
 
 	## renumber structure continuously with Rosetta
 
