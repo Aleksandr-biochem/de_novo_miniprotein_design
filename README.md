@@ -75,6 +75,12 @@ $SCRIPTS/prepare_target_structure.py -i receptor_relaxed.pdb -r B --trimmed
 $SCRIPTS/prepare_target_structure.py -i 7jzm.pdb -r B
 ```
 
+If you just want to assess per residue SAP scores for a target, use `--just_sap` flag. This will only perform the extraction of the desired protein chain and SAP calculation:
+
+```
+$SCRIPTS/prepare_target_structure.py -i 7jzm.pdb -r B --just_sap
+```
+
 ### 1.2 Select target residues for PatchDock and RifDock
 
 We are aiming to design binders making contacts with the hydrophobic residues on selected interface. The file `receptor_with_sap_scores.pdb` is a receptor structure with per residue SAP scores, which will help to make this choice. This structure can be conveniently visualized in PyMol using `per_res_sap.py` script provided in `scripts` dir:
