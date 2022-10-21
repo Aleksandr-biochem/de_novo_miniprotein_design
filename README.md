@@ -53,10 +53,10 @@ As a result `HHH_bc_polyV.list` is produced. Copy this file into the folder, whe
 
 Place the pdb file containing the target of interest into `1_target_preparation` dir (there is already a sample file to try) and execute `prepare_target_structure.py`. This will perform:
 
-- Extraction of the desired receptor protein chain
+- Extraction and continuous renumbering of the desired receptor protein chain
 - Calculation of target per residue SAP
 - Target relaxation in Rosetta
-- Chain renaming (the receptor chain is named A) and continuous renumbering
+- Chain renaming (at this step the receptor chain is named A)
 
 **Important note:** You may benefit from manual target extraction and trimming. This is optional but will speed up all subsquent calculations. Rosetta considers all residues of your target protein even if they are very far from the interface. Removing residues 20Å away from the interface should be safe. If you want to do this launch `prepare_target_structure.py` with `--just_relax` flag. Open the relaxed structure `receptor_relaxed.pdb` in a molecular viewer and delete some residues. Try aiming for the target to be around 200 residues and **don't change the name of the file**. Then run `prepare_target_structure.py` on trimmed file with `--trimmed` flag. 
 
