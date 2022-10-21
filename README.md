@@ -83,11 +83,13 @@ $SCRIPTS/prepare_target_structure.py -i 7jzm.pdb -r B --just_sap
 
 ### 1.2 Select target residues for PatchDock and RifDock
 
-We are aiming to design binders making contacts with the hydrophobic residues on selected interface. The file `receptor_with_sap_scores.pdb` is a receptor structure with per residue SAP scores, which will help to make this choice. This structure can be conveniently visualized in PyMol using `per_res_sap.py` script provided in `scripts` dir:
+We are aiming to design binders making contacts with the hydrophobic residues on selected interface. The file `receptor_with_sap_scores.pdb` is a receptor structure with per residue SAP scores, which will help to make this choice. This structure can be conveniently visualized in PyMol using `per_res_sap.py` script provided in `scripts` dir.  
+
+Start PyMol at the directory where the `receptor_with_sap_scores.pdb` and then:
 
 ```
 # execute the script in PyMol terminal after loading the `receptor_with_sap_scores.pdb`
-run absolute/path/to/per_res_sap.py
+run path/to/per_res_sap.py
 ```
 
 Select 3-9 residues for PatchDock to aim for. **Consider these when choosing:**
