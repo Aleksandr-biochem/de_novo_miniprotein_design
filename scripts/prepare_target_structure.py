@@ -48,6 +48,14 @@ if not args.trimmed:
 		for line in receptor_atoms:
 			o.write(line)
 		o.write("TER\n")
+  
+    ## renumber structure continuously with Rosetta
+
+    print("Renumbering the receptor protein\n")
+    init()
+    pose = pose_from_pdb("receptor_relaxed.pdb")
+    pose.pdb_info(core.pose.PDBInfo(pose))
+    pose.dump_pdb("receptor_relaxed_renumbered.pdb")
 
 	print(f"Saved the target chain as receptor.pdb\n")
 
@@ -73,26 +81,18 @@ if not args.trimmed:
 		relax_args = [os.environ['ROSETTA'],
 					  "-parser:protocol", f"{os.environ['SCRIPTS']}/relax_structure.xml",
 					  "-beta_nov16",
-					  "-s", "receptor_with_sap_scores.pdb"]
+					  "-s", "receptor.pdb"]
 
 		process = subprocess.Popen(relax_args)
 		returncode = process.wait()
 
-		os.rename("receptor_with_sap_scores_0001.pdb",
+		os.rename("receptor_0001.pdb",
 				  "receptor_relaxed.pdb")
 
 
 # if we are working with the structure requiring cleaning and relaxation
 
 if not args.just_relax and not args.just_sap:
-
-	## renumber structure continuously with Rosetta
-
-	print("Renumbering the receptor protein\n")
-	init()
-	pose = pose_from_pdb("receptor_relaxed.pdb")
-	pose.pdb_info(core.pose.PDBInfo(pose))
-	pose.dump_pdb("receptor_relaxed_renumbered.pdb")
 
 	## change chain names: ligand to A, receptor to B
 
@@ -124,14 +124,14 @@ if not args.just_relax and not args.just_sap:
 		    else:
 		        results.append ( line )
 
-	with open("receptor_relaxed_renumbered_chainchanged.pdb", 'w') as fout:
+	with open("receptor_relaxed_chainchanged.pdb", 'w') as fout:
 	    for line in results:
 	        fout.write(line)
 
 	## strip tables from the end of the file
 
-	with open(f"receptor_relaxed_renumbered_chainchanged.pdb", 'r') as f:
-		with open(f"receptor_relaxed_renumbered_chainchanged_striped.pdb", 'w') as o:
+	with open(f"receptor_relaxed_chainchanged.pdb", 'r') as f:
+		with open(f"receptor_relaxed_chainchanged_stripped.pdb", 'w') as o:
 			for line in f:
 				if "# All" in line:
 					break
