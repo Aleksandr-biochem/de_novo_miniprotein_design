@@ -7,8 +7,7 @@ import string
 import colorsys
 import numpy as np
 
-# pdbname = cmd.get_object_list()[0]
-pdbname = "/Users/aleksandrkovalenko/Documents/BI_materials/protein_design/rdb_lcb3_docking/rbd_SAP"
+pdbname = cmd.get_object_list()[0]
 
 def read_pdb( fname ):
     if os.path.exists( fname + ".pdb.gz" ):
