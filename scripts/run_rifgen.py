@@ -16,8 +16,8 @@ parser.add_argument('--cache', nargs=1, help='Cache dir for RifGen. Populated on
 args = parser.parse_args()
 
 ## check protein file for RifGen
-if not exists("../1_target_preparation/receptor_relaxed_renumbered_chainchanged_striped.pdb"):
-	raise Exception("Can not find the target protein file 1_target_preparation/receptor_relaxed_renumbered_chainchanged_striped.pdb. Check or redo the target preparation step.")
+if not exists("../1_target_preparation/receptor_relaxed_chainchanged_stripped.pdb"):
+	raise Exception("Can not find the target protein file 1_target_preparation/receptor_relaxed_chainchanged_stripped.pdb. Check or redo the target preparation step.")
 
 ## check residues input for RifGen
 if exists("../1_target_preparation/rifgen_residues.txt"):
@@ -36,7 +36,7 @@ else:
 with open('rifgen_input/rifgen.flag', 'w') as f:
 
 	f.write("################### File I/O flags ######################################\n\n")
-	f.write("-rifgen:target ../1_target_preparation/receptor_relaxed_renumbered_chainchanged_striped.pdb\n")
+	f.write("-rifgen:target ../1_target_preparation/receptor_relaxed_chainchanged_stripped.pdb\n")
 	f.write("-rifgen:target_res rifgen_input/rifgen_res.list\n\n")
 
 	f.write("-rifgen:outdir rifgen_output\n\n")
