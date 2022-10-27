@@ -121,7 +121,7 @@ Create a cache dir for RifGen somewhere on your system. This dir is populated on
 ```
 cd 2_docking
 
-sbatch --job-name="rifgen" --partition=cpu --nodelist=node_name ../scripts/run_rifgen.py --cache /home/user/tmp/rifgen
+sbatch --job-name="rifgen" --partition=cpu --nodelist=node_name $SCRIPTS/run_rifgen.py --cache /home/user/tmp/rifgen
 ```
 
 Apart from the log file and `rifgen_out` dir, a file `receptor_centered_chainchanged.pdb` is generated. This target protein chain is centered, renamed to B and used for the further dockings, so don't move or rename it. **Note:** It is also critical to keep the output `rifgen.log` file as the information from it is used by further scripts.
