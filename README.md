@@ -172,7 +172,7 @@ silentls rifdock_out/scaffold_name.silent | wc -l
 
 # in addition you can inspect dockings visually. Exctract 10 random dockings:
 cd rifdock_out
-silentls scaffold_name.silent | shuf | head -n 10 | silentextractspecific
+silentls scaffold_name.silent | shuf | head -n 10 | silentextractspecific scaffold_name.silent
 ```
 
 The tuning goal is to achieve a particular number of docking outputs per scaffold. By defaukt we aim for 300 (as specified in `-n_pdb_out_global` at `rifdock.flag`), but you may want to produce fewer or more docking outputs. If you have less outputs then expected after the test run, delete `rifdock_out` dir and change some `rifdock.flag` parameters manually. Here is a brief advice on what flags to tackle:
