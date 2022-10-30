@@ -26,11 +26,12 @@ if not args.predictor is None:
 		for file in score_files:
 			with open(file, 'r') as sc:
 				for line in sc:
-					if ('description' in line) and (not got_header):
-						f.write(line)
-						got_header = True
-					elif not 'SEQUENCE' in line:
-						f.write(line)
+					if 'total_score' in line:
+                        if not got_header:
+                            f.write(line)
+                    elif not 'SEQUENCE' in line:
+                        f.write(line)
+            got_header = True
 	print("Saved the predictor_score_combined.sc\n")
 
 ## collect silent files from design jobs
