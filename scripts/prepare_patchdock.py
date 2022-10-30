@@ -48,7 +48,7 @@ for scaffold in scaffolds:
 		f.write(f"receptorPdb {cwd}/receptor_centered_chainchanged.pdb\n")
 		f.write(f"ligandPdb {scaffold}\n")
 		f.write(f"protLib {'/'.join(os.environ['PATCHDOCK'].split('/')[:-1])}/chem.lib\n")
-		f.write("log-file lcb3_0001.log\n")
+		f.write("log-file patchdock_log.log\n")
 		f.write("log-level 0\n")
 		f.write("receptorSeg 10.0 20.0 1.5 1 0 1 0\n")
 		f.write("ligandSeg 10.0 20.0 1.5 1 0 1 0\n")
