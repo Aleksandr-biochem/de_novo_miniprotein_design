@@ -242,7 +242,7 @@ $SCRIPTS/prepare_design.py -i path/to/docks.silent -n node_name1,node_name2 -c 1
 ./run_design_jobs.sh
 
 # collect results
-$SCRIPTS/collect_outputs.py --design .
+$SCRIPTS/collect_outputs.py --design designs
 ```
 
 ## 4. Motif grafting
